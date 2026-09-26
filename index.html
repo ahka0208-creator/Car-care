@@ -131,7 +131,26 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            display: none; /* 預設隱藏，編輯時才顯示 */
+            display: none;
+        }
+
+        .summary-box {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #2e7d32;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: right;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .summary-box span.total-amount {
+            font-size: 20px;
         }
 
         .table-container {
@@ -224,7 +243,6 @@
                     <option value="一般維修">🔧 一般維修/零件</option>
                     <option value="其他">➕ 其他 (自行輸入)</option>
                 </select>
-                <!-- 隱藏的自訂輸入框，選擇「其他」時才會出現 -->
                 <input type="text" id="customCategory" placeholder="請輸入項目名稱 (例如: 洗車、換水撥)" style="display: none; margin-top: 10px;">
             </div>
             
@@ -262,8 +280,14 @@
         </form>
     </div>
 
-    <!-- 紀錄列表 -->
+    <!-- 紀錄列表與總花費 -->
     <div class="card table-container">
+        <!-- 總計顯示區 -->
+        <div class="summary-box">
+            <span>累積總花費：</span>
+            <span class="total-amount">$<span id="totalCostDisplay">0</span></span>
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -291,23 +315,21 @@
     const globalOdoInput = document.getElementById('currentGlobalOdo');
     const submitBtn = document.getElementById('submitBtn');
     const cancelBtn = document.getElementById('cancelBtn');
+    const totalCostDisplay = document.getElementById('totalCostDisplay');
     
-    // 紀錄目前正在編輯的索引 (-1 代表新增狀態)
     let currentEditIndex = -1;
 
     document.getElementById('date').valueAsDate = new Date();
 
-    // 載入當前總里數
     let currentGlobalOdo = localStorage.getItem('myCurrentMileage') || '';
     globalOdoInput.value = currentGlobalOdo;
 
     function saveGlobalOdo() {
         localStorage.setItem('myCurrentMileage', globalOdoInput.value);
         currentGlobalOdo = globalOdoInput.value;
-        loadRecords(); // 重新計算顏色警報
+        loadRecords(); 
     }
 
-    // 控制自訂項目欄位的顯示與隱藏
     function toggleCustomCategory() {
         const categorySelect = document.getElementById('category').value;
         const customInput = document.getElementById('customCategory');
@@ -322,7 +344,6 @@
         }
     }
 
-    // 計算狀態 (normal, warning, danger)
     function checkStatus(dueDate, dueMileage) {
         let status = 'normal';
         const today = new Date();
@@ -346,16 +367,21 @@
         return status;
     }
 
-    // 載入並顯示紀錄
     function loadRecords() {
         const records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
         tableBody.innerHTML = '';
         
+        let totalCost = 0; // 初始化總花費
+
         if (records.length === 0) {
             emptyState.style.display = 'block';
+            totalCostDisplay.innerText = '0';
         } else {
             emptyState.style.display = 'none';
             records.forEach((record, index) => {
+                // 計算總花費
+                totalCost += parseFloat(record.cost) || 0;
+
                 const tr = document.createElement('tr');
                 
                 const status = checkStatus(record.dueDate, record.dueMileage);
@@ -379,25 +405,25 @@
                 `;
                 tableBody.appendChild(tr);
             });
+
+            // 顯示總花費 (保留一位小數或整數)
+            totalCostDisplay.innerText = totalCost % 1 === 0 ? totalCost : totalCost.toFixed(1);
         }
     }
 
-    // 進入編輯模式
     window.editRecord = function(index) {
         const records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
         const record = records[index];
         if (!record) return;
 
-        currentEditIndex = index; // 標記為正在編輯
+        currentEditIndex = index; 
 
-        // 填入日期、里數、花費
         document.getElementById('date').value = record.date;
         document.getElementById('mileage').value = record.mileage || '';
         document.getElementById('dueDate').value = record.dueDate || '';
         document.getElementById('dueMileage').value = record.dueMileage || '';
         document.getElementById('cost').value = record.cost;
 
-        // 判斷類別是否為預設選單內
         const selectElement = document.getElementById('category');
         const customInput = document.getElementById('customCategory');
         let isDefaultOption = false;
@@ -415,32 +441,27 @@
         } else {
             selectElement.value = '其他';
             toggleCustomCategory();
-            customInput.value = record.category; // 將自訂文字放回輸入框
+            customInput.value = record.category; 
         }
 
-        // 改變按鈕狀態
         submitBtn.innerText = '儲存修改';
-        submitBtn.style.backgroundColor = '#007AFF'; // 藍色提示
+        submitBtn.style.backgroundColor = '#007AFF'; 
         cancelBtn.style.display = 'block';
 
-        // 讓畫面自動捲動回最上方填表處
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // 取消編輯模式
     window.cancelEdit = function() {
         currentEditIndex = -1;
         form.reset();
         document.getElementById('date').valueAsDate = new Date(); 
         toggleCustomCategory();
         
-        // 還原按鈕狀態
         submitBtn.innerText = '新增紀錄';
         submitBtn.style.backgroundColor = 'var(--primary-color)';
         cancelBtn.style.display = 'none';
     }
 
-    // 提交表單 (新增 或 修改)
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -457,23 +478,19 @@
         let records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
         
         if (currentEditIndex > -1) {
-            // 如果處於編輯狀態，則覆蓋該筆紀錄
             records[currentEditIndex] = newRecord;
             alert('修改成功！');
-            cancelEdit(); // 儲存後自動重設回新增狀態
+            cancelEdit(); 
         } else {
-            // 如果是新增狀態，則加入新紀錄
             records.push(newRecord);
             form.reset();
             document.getElementById('date').valueAsDate = new Date(); 
             toggleCustomCategory();
         }
         
-        // 按照日期排序並儲存
         records.sort((a, b) => new Date(b.date) - new Date(a.date));
         localStorage.setItem('myCarMaintenanceRecords', JSON.stringify(records));
         
-        // 如果有輸入當時里數，自動更新頂部的「當前里數」
         if (mileage && (!currentGlobalOdo || parseFloat(mileage) > parseFloat(currentGlobalOdo))) {
             globalOdoInput.value = mileage;
             saveGlobalOdo();
@@ -482,14 +499,12 @@
         }
     });
 
-    // 刪除紀錄
     window.deleteRecord = function(index) {
         if(confirm('確定要刪除這筆紀錄嗎？')) {
             const records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
             records.splice(index, 1);
             localStorage.setItem('myCarMaintenanceRecords', JSON.stringify(records));
             
-            // 如果刪除的剛好是正在編輯的紀錄，則取消編輯狀態
             if (index === currentEditIndex) {
                 cancelEdit();
             }
@@ -497,7 +512,6 @@
         }
     }
 
-    // 初始化載入
     loadRecords();
 </script>
 
