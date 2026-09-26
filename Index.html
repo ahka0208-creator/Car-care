@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔧 車輛保養及牌費備忘錄</title>
+    <style>
+        :root {
+            --primary-color: #2b2d42;
+            --secondary-color: #8d99ae;
+            --accent-color: #ef233c;
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --text-color: #2b2d42;
+            --border-color: #edf2f4;
+            --warning-bg: #fff8e1;
+            --warning-text: #f57f17;
+            --danger-bg: #ffebee;
+            --danger-text: #c62828;
+            --edit-color: #007AFF;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .odo-update {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+        }
+
+        .odo-update input {
+            flex: 1;
+            margin: 0;
+            border-color: #90caf9;
+            background: white;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--secondary-color);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            -webkit-appearance: none;
+            background-color: #fafafa;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            background-color: white;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button.primary-btn {
+            flex: 1;
+            padding: 14px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button.primary-btn:active {
+            background-color: #1a1b28;
+        }
+
+        button.cancel-btn {
+            flex: 1;
+            padding: 14px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none; /* 預設隱藏，編輯時才顯示 */
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f9f9f9;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--secondary-color);
+        }
+
+        td {
+            font-size: 14px;
+        }
+
+        .row-warning {
+            background-color: var(--warning-bg) !important;
+            color: var(--warning-text);
+            font-weight: bold;
+        }
+
+        .row-danger {
+            background-color: var(--danger-bg) !important;
+            color: var(--danger-text);
+            font-weight: bold;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .edit-btn, .delete-btn {
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            width: auto;
+            margin: 0;
+        }
+        
+        .edit-btn { background-color: var(--edit-color); }
+        .delete-btn { background-color: var(--accent-color); }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔧 車輛保養及牌費備忘錄</h2>
+
+    <!-- 當前里數更新區 -->
+    <div class="card odo-update">
+        <label style="margin:0;">當前里數 (km):</label>
+        <input type="number" id="currentGlobalOdo" placeholder="更新儀錶板里數" onchange="saveGlobalOdo()">
+    </div>
+
+    <!-- 新增/編輯紀錄表單 -->
+    <div class="card">
+        <form id="maintenanceForm">
+            <div class="form-group">
+                <label>項目類別</label>
+                <select id="category" required onchange="toggleCustomCategory()">
+                    <option value="換偈油">🛢️ 換偈油 (Engine Oil)</option>
+                    <option value="換車胎">🛞 換車胎 (Tires)</option>
+                    <option value="交牌費">📝 交牌費 (Vehicle License)</option>
+                    <option value="買保險">🛡️ 買保險 (Insurance)</option>
+                    <option value="政府驗車">🔍 政府驗車 (MOT)</option>
+                    <option value="一般維修">🔧 一般維修/零件</option>
+                    <option value="其他">➕ 其他 (自行輸入)</option>
+                </select>
+                <!-- 隱藏的自訂輸入框，選擇「其他」時才會出現 -->
+                <input type="text" id="customCategory" placeholder="請輸入項目名稱 (例如: 洗車、換水撥)" style="display: none; margin-top: 10px;">
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>保養/繳費日期</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label>當時里數 (km)</label>
+                    <input type="number" id="mileage" placeholder="例如: 45000">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>下次到期日 (選填)</label>
+                    <input type="date" id="dueDate">
+                </div>
+                <div class="form-group">
+                    <label>下次保養里數 (選填)</label>
+                    <input type="number" id="dueMileage" placeholder="例如: 50000">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>花費 ($)</label>
+                <input type="number" id="cost" step="0.1" placeholder="例如: 1500" required>
+            </div>
+            
+            <div class="btn-group">
+                <button type="submit" id="submitBtn" class="primary-btn">新增紀錄</button>
+                <button type="button" id="cancelBtn" class="cancel-btn" onclick="cancelEdit()">取消編輯</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 紀錄列表 -->
+    <div class="card table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>項目</th>
+                    <th>日期</th>
+                    <th>下次到期</th>
+                    <th>花費</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="recordTableBody">
+                <!-- 紀錄會動態顯示在這裡 -->
+            </tbody>
+        </table>
+        <div id="emptyState" class="empty-state" style="display: none;">
+            尚無紀錄，請在上方新增你的保養資料。
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('maintenanceForm');
+    const tableBody = document.getElementById('recordTableBody');
+    const emptyState = document.getElementById('emptyState');
+    const globalOdoInput = document.getElementById('currentGlobalOdo');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    
+    // 紀錄目前正在編輯的索引 (-1 代表新增狀態)
+    let currentEditIndex = -1;
+
+    document.getElementById('date').valueAsDate = new Date();
+
+    // 載入當前總里數
+    let currentGlobalOdo = localStorage.getItem('myCurrentMileage') || '';
+    globalOdoInput.value = currentGlobalOdo;
+
+    function saveGlobalOdo() {
+        localStorage.setItem('myCurrentMileage', globalOdoInput.value);
+        currentGlobalOdo = globalOdoInput.value;
+        loadRecords(); // 重新計算顏色警報
+    }
+
+    // 控制自訂項目欄位的顯示與隱藏
+    function toggleCustomCategory() {
+        const categorySelect = document.getElementById('category').value;
+        const customInput = document.getElementById('customCategory');
+        
+        if (categorySelect === '其他') {
+            customInput.style.display = 'block';
+            customInput.required = true;
+        } else {
+            customInput.style.display = 'none';
+            customInput.required = false;
+            customInput.value = '';
+        }
+    }
+
+    // 計算狀態 (normal, warning, danger)
+    function checkStatus(dueDate, dueMileage) {
+        let status = 'normal';
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        if (dueDate) {
+            const due = new Date(dueDate);
+            const diffTime = due - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            if (diffDays <= 14) status = 'danger';
+            else if (diffDays <= 30) status = 'warning';
+        }
+
+        if (dueMileage && currentGlobalOdo) {
+            const kmLeft = dueMileage - parseFloat(currentGlobalOdo);
+            if (kmLeft <= 200) status = 'danger';
+            else if (kmLeft <= 1000 && status !== 'danger') status = 'warning';
+        }
+
+        return status;
+    }
+
+    // 載入並顯示紀錄
+    function loadRecords() {
+        const records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
+        tableBody.innerHTML = '';
+        
+        if (records.length === 0) {
+            emptyState.style.display = 'block';
+        } else {
+            emptyState.style.display = 'none';
+            records.forEach((record, index) => {
+                const tr = document.createElement('tr');
+                
+                const status = checkStatus(record.dueDate, record.dueMileage);
+                if (status === 'warning') tr.className = 'row-warning';
+                if (status === 'danger') tr.className = 'row-danger';
+                
+                let dueText = '';
+                if (record.dueDate) dueText += `${record.dueDate}<br>`;
+                if (record.dueMileage) dueText += `${record.dueMileage} km`;
+                if (!dueText) dueText = '-';
+
+                tr.innerHTML = `
+                    <td><strong>${record.category}</strong><br><small>${record.mileage ? record.mileage + ' km' : ''}</small></td>
+                    <td>${record.date}</td>
+                    <td>${dueText}</td>
+                    <td>$${record.cost}</td>
+                    <td class="action-btns">
+                        <button class="edit-btn" onclick="editRecord(${index})">編輯</button>
+                        <button class="delete-btn" onclick="deleteRecord(${index})">刪除</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+    }
+
+    // 進入編輯模式
+    window.editRecord = function(index) {
+        const records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
+        const record = records[index];
+        if (!record) return;
+
+        currentEditIndex = index; // 標記為正在編輯
+
+        // 填入日期、里數、花費
+        document.getElementById('date').value = record.date;
+        document.getElementById('mileage').value = record.mileage || '';
+        document.getElementById('dueDate').value = record.dueDate || '';
+        document.getElementById('dueMileage').value = record.dueMileage || '';
+        document.getElementById('cost').value = record.cost;
+
+        // 判斷類別是否為預設選單內
+        const selectElement = document.getElementById('category');
+        const customInput = document.getElementById('customCategory');
+        let isDefaultOption = false;
+        
+        for (let i = 0; i < selectElement.options.length; i++) {
+            if (selectElement.options[i].value === record.category) {
+                isDefaultOption = true;
+                break;
+            }
+        }
+
+        if (isDefaultOption) {
+            selectElement.value = record.category;
+            toggleCustomCategory();
+        } else {
+            selectElement.value = '其他';
+            toggleCustomCategory();
+            customInput.value = record.category; // 將自訂文字放回輸入框
+        }
+
+        // 改變按鈕狀態
+        submitBtn.innerText = '儲存修改';
+        submitBtn.style.backgroundColor = '#007AFF'; // 藍色提示
+        cancelBtn.style.display = 'block';
+
+        // 讓畫面自動捲動回最上方填表處
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 取消編輯模式
+    window.cancelEdit = function() {
+        currentEditIndex = -1;
+        form.reset();
+        document.getElementById('date').valueAsDate = new Date(); 
+        toggleCustomCategory();
+        
+        // 還原按鈕狀態
+        submitBtn.innerText = '新增紀錄';
+        submitBtn.style.backgroundColor = 'var(--primary-color)';
+        cancelBtn.style.display = 'none';
+    }
+
+    // 提交表單 (新增 或 修改)
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const categorySelect = document.getElementById('category').value;
+        const category = (categorySelect === '其他') ? document.getElementById('customCategory').value : categorySelect;
+        
+        const date = document.getElementById('date').value;
+        const mileage = document.getElementById('mileage').value;
+        const dueDate = document.getElementById('dueDate').value;
+        const dueMileage = document.getElementById('dueMileage').value;
+        const cost = parseFloat(document.getElementById('cost').value);
+
+        const newRecord = { category, date, mileage, dueDate, dueMileage, cost };
+        let records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
+        
+        if (currentEditIndex > -1) {
+            // 如果處於編輯狀態，則覆蓋該筆紀錄
+            records[currentEditIndex] = newRecord;
+            alert('修改成功！');
+            cancelEdit(); // 儲存後自動重設回新增狀態
+        } else {
+            // 如果是新增狀態，則加入新紀錄
+            records.push(newRecord);
+            form.reset();
+            document.getElementById('date').valueAsDate = new Date(); 
+            toggleCustomCategory();
+        }
+        
+        // 按照日期排序並儲存
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        localStorage.setItem('myCarMaintenanceRecords', JSON.stringify(records));
+        
+        // 如果有輸入當時里數，自動更新頂部的「當前里數」
+        if (mileage && (!currentGlobalOdo || parseFloat(mileage) > parseFloat(currentGlobalOdo))) {
+            globalOdoInput.value = mileage;
+            saveGlobalOdo();
+        } else {
+            loadRecords();
+        }
+    });
+
+    // 刪除紀錄
+    window.deleteRecord = function(index) {
+        if(confirm('確定要刪除這筆紀錄嗎？')) {
+            const records = JSON.parse(localStorage.getItem('myCarMaintenanceRecords')) || [];
+            records.splice(index, 1);
+            localStorage.setItem('myCarMaintenanceRecords', JSON.stringify(records));
+            
+            // 如果刪除的剛好是正在編輯的紀錄，則取消編輯狀態
+            if (index === currentEditIndex) {
+                cancelEdit();
+            }
+            loadRecords();
+        }
+    }
+
+    // 初始化載入
+    loadRecords();
+</script>
+
+</body>
+</html>
